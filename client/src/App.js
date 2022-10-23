@@ -20,7 +20,9 @@ const App = () => {
 
     // checks if user has entered the file
     if (e.target.files.length) {
+      console.log("event: " + e);
       const inputFile = e.target.files[0];
+      console.log("Input file: " + inputFile);
 
       // check file extension
       const fileExtension = inputFile?.type.split("/")[1];
@@ -29,9 +31,41 @@ const App = () => {
         return;
       }
 
+      // check file size
+      console.log("Input size: " + inputFile.size / 1024);
+      if (inputFile.size / 1024 > 2) {
+        setError("Please input a file of size 2MB or less!");
+      }
+      
       // set the state if input type is valid
       setFile(inputFile);
     }
+  }
+
+  const checkForDuplicates = (arr) => {
+    if (arr.length !== new Set(arr).size) {
+      return true;
+    }
+
+    return false;
+  }
+
+  const checkForMissingValues = (arr) => {
+    // iterate array of objects
+    arr.forEach(employee => {
+      // convert object to array
+      const values = Object.values(employee);
+      if (values.length !== 4) {
+        setError("Row contains missing value!");
+        return;
+      } 
+      values.forEach(value => {
+        if (value.length === 0) {
+          setError("Row contains missing value!");
+          return;
+        }
+      })
+    });
   }
 
   const handleParse = () => {
@@ -43,23 +77,51 @@ const App = () => {
 
     // event listener on reader when the file loads, we parse it and set the data
     reader.onload = async ({ target }) => {
+      // console.log("target: ", target);
+      // console.log("target res: ", target.result);
       const csv = Papa.parse(target.result, { header: true });
+      // console.log("csv: ", csv);
       const parsedData = csv?.data;
-      console.log(parsedData)
+      const ids = parsedData.map(({id}) => id);
+      if (checkForDuplicates(ids)) {
+        setError("There are duplicated IDs in the CSV file!");
+        return;
+      }
+      const logins = parsedData.map(({login}) => login);
+      if (checkForDuplicates(logins)) {
+        setError("There are duplicated logins in the CSV file!");
+        return;
+      }
+      checkForMissingValues(parsedData);
+      console.log("parsedData: ", parsedData);
       const columns = Object.keys(parsedData[0]);
       setData(columns);
+
+      if (error === "") {
+        const formData = new FormData();
+        formData.append('file', file);
+        console.log("FormData: ", formData);
+        fetch('http://localhost:8070/users/upload', {
+            method: 'POST',
+            body: formData
+          }
+        )
+        .then((resp) => console.log('Result: ', resp))
+        .catch((err) => console.log('Error: ', err));
+      }
     };
+
     reader.readAsText(file);
   }
 
   return (
-    <div>
-      <label htmlFor='csvInput' style={{ display: 'block' }}>Enter CSV file</label>
+    <form encType='multipart/form-data' action=''>
+      <label htmlFor='csvInput' style={{ display: 'block' }}>Attach CSV file</label>
       <input 
         onChange={handleFileChange}
         id='csvInput'
         name='file'
-        type='File'
+        type='file'
       />
       <div>
         <button onClick={handleParse}>Parse</button>
@@ -67,7 +129,7 @@ const App = () => {
       <div style={{ marginTop: '3rem'}}>
         {error ? error : data.map((col, idx) => <div key={idx}>{col}</div>)}
       </div>
-    </div>
+    </form>
   );
 }
 
