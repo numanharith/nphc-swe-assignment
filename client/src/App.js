@@ -20,9 +20,7 @@ const App = () => {
 
     // checks if user has entered the file
     if (e.target.files.length) {
-      console.log("event: " + e);
       const inputFile = e.target.files[0];
-      console.log("Input file: " + inputFile);
 
       // check file extension
       const fileExtension = inputFile?.type.split("/")[1];
@@ -32,7 +30,6 @@ const App = () => {
       }
 
       // check file size
-      console.log("Input size: " + inputFile.size / 1024);
       if (inputFile.size / 1024 > 2) {
         setError("Please input a file of size 2MB or less!");
       }
@@ -77,10 +74,7 @@ const App = () => {
 
     // event listener on reader when the file loads, we parse it and set the data
     reader.onload = async ({ target }) => {
-      // console.log("target: ", target);
-      // console.log("target res: ", target.result);
       const csv = Papa.parse(target.result, { header: true });
-      // console.log("csv: ", csv);
       const parsedData = csv?.data;
       const ids = parsedData.map(({id}) => id);
       if (checkForDuplicates(ids)) {
@@ -93,21 +87,24 @@ const App = () => {
         return;
       }
       checkForMissingValues(parsedData);
-      console.log("parsedData: ", parsedData);
       const columns = Object.keys(parsedData[0]);
       setData(columns);
 
       if (error === "") {
         const formData = new FormData();
         formData.append('file', file);
-        console.log("FormData: ", formData);
         fetch('http://localhost:8070/users/upload', {
             method: 'POST',
             body: formData
           }
         )
-        .then((resp) => console.log('Result: ', resp))
-        .catch((err) => console.log('Error: ', err));
+        .then((resp) => {
+          console.log('Response: ', resp);
+          if (!resp.ok) {
+            setError('Response not ok!');
+          }
+        })
+        .catch((err) => setError('Unable to upload to server!'));
       }
     };
 
@@ -115,7 +112,7 @@ const App = () => {
   }
 
   return (
-    <form encType='multipart/form-data' action=''>
+    <div>
       <label htmlFor='csvInput' style={{ display: 'block' }}>Attach CSV file</label>
       <input 
         onChange={handleFileChange}
@@ -127,9 +124,9 @@ const App = () => {
         <button onClick={handleParse}>Parse</button>
       </div>
       <div style={{ marginTop: '3rem'}}>
-        {error ? error : data.map((col, idx) => <div key={idx}>{col}</div>)}
+        {error ? error : 'File is upload successfully!'}
       </div>
-    </form>
+    </div>
   );
 }
 
